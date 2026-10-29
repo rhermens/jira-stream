@@ -1,14 +1,11 @@
 use std::{env, time::Duration};
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use gouqi::{Credentials, Issue, r#async::Jira};
 use jira_stream::config::AcliProfile;
 
 #[derive(Debug, clap::Parser)]
 struct Args {
-    #[arg(short, long, default_value_t = 30)]
-    pub interval: u64,
-
     #[arg(short, long)]
     pub username: Option<String>,
 
@@ -17,9 +14,24 @@ struct Args {
 
     #[arg(long)]
     pub host: Option<String>,
+}
 
-    #[arg(long)]
-    pub ticket: String,
+#[derive(Debug, clap::Parser)]
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Debug, Subcommand)]
+enum Command {
+    Watch {
+        #[arg(short, long, default_value_t = 30)]
+        interval: u64,
+
+        #[arg(long)]
+        ticket: String,
+    },
+    Login,
 }
 
 #[derive(Debug)]

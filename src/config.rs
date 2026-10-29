@@ -1,6 +1,9 @@
 use std::{env, fs, path::PathBuf};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Config {}
 
 #[derive(Debug, Deserialize)]
 pub struct AcliProfile {
