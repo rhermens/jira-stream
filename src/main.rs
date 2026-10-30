@@ -14,6 +14,12 @@ struct Args {
 
     #[arg(long)]
     pub host: Option<String>,
+
+    #[arg(short, long, default_value_t = 30)]
+    pub interval: u64,
+
+    #[arg(long)]
+    pub ticket: String,
 }
 
 #[derive(Debug, clap::Parser)]
@@ -66,6 +72,7 @@ impl State {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
+
     let profile = AcliProfile::try_new();
 
     let username = args
