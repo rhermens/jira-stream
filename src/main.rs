@@ -1,8 +1,11 @@
-use std::{env, time::Duration};
+use std::{
+    io::{self, Write},
+    time::Duration,
+};
 
 use clap::{Parser, Subcommand};
 use gouqi::{Credentials, Issue, r#async::Jira};
-use jira_stream::config::AcliProfile;
+use jira_stream::config::Config;
 
 #[derive(Debug, clap::Parser)]
 struct Args {
@@ -23,7 +26,7 @@ struct Args {
 }
 
 #[derive(Debug, clap::Parser)]
-struct Cli {
+struct CliArgs {
     #[command(subcommand)]
     command: Command,
 }
@@ -70,32 +73,52 @@ impl State {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = Args::parse();
+async fn main() {
+    let args = CliArgs::parse();
 
-    let profile = AcliProfile::try_new();
+    match args.command {
+        Command::Watch { interval, ticket } => {
+            let config = Config::try_load().expect("No config found, run login first");
 
-    let username = args
-        .username
-        .or_else(|| profile.as_ref().map(|p| p.email.clone()))
-        .expect("No jira username");
-    let host = args
-        .host
-        .or_else(|| profile.as_ref().map(|p| format!("https://{}", p.site)))
-        .expect("No jira host");
-    let jira_token = args
-        .token
-        .or(env::var("JIRA_TOKEN").ok())
-        .expect("No jira auth");
-    let credentials = Credentials::Basic(username, jira_token);
-    let jira = Jira::new(host, credentials).expect("No jira");
+            let credentials = Credentials::Basic(config.username, config.token);
+            let jira = Jira::new(config.host, credentials).expect("No jira");
 
-    let issue = jira.issues().get(&args.ticket).await?;
-    let mut state = State::new(issue);
+            let issue = jira
+                .issues()
+                .get(&ticket)
+                .await
+                .expect("Failed to get issue");
+            let mut state = State::new(issue);
 
-    loop {
-        tokio::time::sleep(Duration::from_secs(args.interval)).await;
-        let issue = jira.issues().get(&args.ticket).await?;
-        state.maybe_update(issue);
+            loop {
+                tokio::time::sleep(Duration::from_secs(interval)).await;
+                let issue = jira
+                    .issues()
+                    .get(&ticket)
+                    .await
+                    .expect("Failed to get issue");
+                state.maybe_update(issue);
+            }
+        }
+        Command::Login => {
+            let config = Config {
+                username: prompt("Username (email)"),
+                host: prompt("Host (e.g. https://example.atlassian.net)"),
+                token: prompt("API token"),
+            };
+            let path = config.save().expect("Failed to save config");
+            println!("Config saved to {}", path.display());
+        }
     }
+}
+
+fn prompt(label: &str) -> String {
+    print!("{label}: ");
+    io::stdout().flush().expect("Failed to flush stdout");
+
+    let mut input = String::new();
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to read input");
+    input.trim().to_string()
 }

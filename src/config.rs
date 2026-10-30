@@ -1,36 +1,39 @@
-use std::{env, fs, path::PathBuf};
+use std::{env, fs, io, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Config {}
-
-#[derive(Debug, Deserialize)]
-pub struct AcliProfile {
-    pub site: String,
-    pub cloud_id: String,
-    pub account_id: String,
-    pub email: String,
+pub struct Config {
+    pub username: String,
+    pub host: String,
+    pub token: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct AcliConfig {
-    current_profile: String,
-    profiles: Vec<AcliProfile>,
-}
-
-impl AcliProfile {
-    pub fn try_new() -> Option<AcliProfile> {
+impl Config {
+    pub fn path() -> Option<PathBuf> {
         let config_dir = env::var("XDG_CONFIG_HOME")
             .map(PathBuf::from)
             .or_else(|_| env::var("HOME").map(|home| PathBuf::from(home).join(".config")))
             .ok()?;
-        let contents = fs::read_to_string(config_dir.join("acli/jira_config.yaml")).ok()?;
-        let config: AcliConfig = serde_yaml::from_str(&contents).ok()?;
 
-        config
-            .profiles
-            .into_iter()
-            .find(|p| format!("{}:{}", p.cloud_id, p.account_id) == config.current_profile)
+        Some(config_dir.join("jira-stream/jira-stream.yaml"))
+    }
+
+    pub fn try_load() -> Option<Config> {
+        let contents = fs::read_to_string(Self::path()?).ok()?;
+
+        serde_yaml::from_str(&contents).ok()
+    }
+
+    pub fn save(&self) -> io::Result<PathBuf> {
+        let path = Self::path()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No config directory"))?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let contents = serde_yaml::to_string(self).map_err(io::Error::other)?;
+        fs::write(&path, contents)?;
+
+        Ok(path)
     }
 }
