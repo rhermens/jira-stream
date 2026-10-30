@@ -5,7 +5,7 @@ use std::{
 
 use clap::{Parser, Subcommand};
 use gouqi::{Credentials, Issue, r#async::Jira};
-use jira_stream::config::Config;
+use jira_stream::{config::Config, state::State};
 
 #[derive(Debug, clap::Parser)]
 struct Args {
@@ -33,6 +33,10 @@ struct CliArgs {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    Fetch {
+        #[arg(long)]
+        ticket: String,
+    },
     Watch {
         #[arg(short, long, default_value_t = 30)]
         interval: u64,
@@ -43,43 +47,25 @@ enum Command {
     Login,
 }
 
-#[derive(Debug)]
-struct State {
-    pub issue: Issue,
-}
-
-impl State {
-    pub fn new(issue: Issue) -> Self {
-        let ret = Self { issue };
-        ret.emit();
-        ret
-    }
-
-    pub fn maybe_update(&mut self, issue: Issue) {
-        if self.issue.fields.get("updated") == issue.fields.get("updated") {
-            return;
-        }
-
-        self.issue = issue;
-        self.emit();
-    }
-
-    pub fn emit(&self) {
-        println!(
-            "{}",
-            serde_json::to_string(&self.issue).expect("Failed to serialize issue")
-        );
-    }
-}
-
 #[tokio::main]
 async fn main() {
     let args = CliArgs::parse();
 
     match args.command {
+        Command::Fetch { ticket } => {
+            let config = Config::try_load().expect("No config found, run login first");
+            let credentials = Credentials::Basic(config.username, config.token);
+            let jira = Jira::new(config.host, credentials).expect("No jira");
+
+            let issue = jira
+                .issues()
+                .get(&ticket)
+                .await
+                .expect("Failed to get issue");
+            State::new(issue);
+        }
         Command::Watch { interval, ticket } => {
             let config = Config::try_load().expect("No config found, run login first");
-
             let credentials = Credentials::Basic(config.username, config.token);
             let jira = Jira::new(config.host, credentials).expect("No jira");
 
