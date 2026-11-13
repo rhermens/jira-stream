@@ -4,7 +4,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
-use gouqi::{Credentials, Issue, r#async::Jira};
+use gouqi::{Credentials, r#async::Jira};
 use jira_stream::{config::Config, state::State};
 
 #[derive(Debug, clap::Parser)]
@@ -57,33 +57,27 @@ async fn main() {
             let credentials = Credentials::Basic(config.username, config.token);
             let jira = Jira::new(config.host, credentials).expect("No jira");
 
-            let issue = jira
-                .issues()
-                .get(&ticket)
+            let state = State::fetch(&jira, &ticket)
                 .await
-                .expect("Failed to get issue");
-            State::new(issue);
+                .expect("Failed to get issue or parent");
+            state.emit();
         }
         Command::Watch { interval, ticket } => {
             let config = Config::try_load().expect("No config found, run login first");
             let credentials = Credentials::Basic(config.username, config.token);
             let jira = Jira::new(config.host, credentials).expect("No jira");
 
-            let issue = jira
-                .issues()
-                .get(&ticket)
+            let mut state = State::fetch(&jira, &ticket)
                 .await
-                .expect("Failed to get issue");
-            let mut state = State::new(issue);
+                .expect("Failed to get issue or parent");
+            state.emit();
 
             loop {
                 tokio::time::sleep(Duration::from_secs(interval)).await;
-                let issue = jira
-                    .issues()
-                    .get(&ticket)
+                let next = State::fetch(&jira, &ticket)
                     .await
-                    .expect("Failed to get issue");
-                state.maybe_update(issue);
+                    .expect("Failed to get issue or parent");
+                state.maybe_update(next);
             }
         }
         Command::Login => {
