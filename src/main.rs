@@ -3,49 +3,13 @@ use std::{
     time::Duration,
 };
 
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use gouqi::{Credentials, r#async::Jira};
 use jira_stream::{config::Config, state::State};
 
-#[derive(Debug, clap::Parser)]
-struct Args {
-    #[arg(short, long)]
-    pub username: Option<String>,
+mod cli;
 
-    #[arg(short, long)]
-    pub token: Option<String>,
-
-    #[arg(long)]
-    pub host: Option<String>,
-
-    #[arg(short, long, default_value_t = 30)]
-    pub interval: u64,
-
-    #[arg(long)]
-    pub ticket: String,
-}
-
-#[derive(Debug, clap::Parser)]
-struct CliArgs {
-    #[command(subcommand)]
-    command: Command,
-}
-
-#[derive(Debug, Subcommand)]
-enum Command {
-    Fetch {
-        #[arg(long)]
-        ticket: String,
-    },
-    Watch {
-        #[arg(short, long, default_value_t = 30)]
-        interval: u64,
-
-        #[arg(long)]
-        ticket: String,
-    },
-    Login,
-}
+use cli::{CliArgs, Command};
 
 #[tokio::main]
 async fn main() {

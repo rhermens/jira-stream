@@ -23,6 +23,9 @@
 
         bin = craneLib.buildPackage (commonArgs // {
           inherit cargoArtifacts;
+          postInstall = ''
+            find target -path '*/build/jira-stream-*/out/*.1' -exec install -Dm644 -t "$out/share/man/man1" {} +
+          '';
         });
       in
       {
