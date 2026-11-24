@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
 
 /// Fetch and watch Jira issues as newline-delimited JSON.
@@ -47,6 +49,14 @@ pub enum Command {
         /// Jira issue key to watch, for example TEST-123.
         #[arg(long, value_name = "KEY")]
         ticket: String,
+
+        /// Replay session history, then stream JSON events through this Unix socket.
+        ///
+        /// Standard output remains enabled. Parent directories are created as needed.
+        /// Each connection receives all events emitted since startup, then live events.
+        /// History is retained in memory until exit.
+        #[arg(long, value_name = "PATH")]
+        socket: Option<PathBuf>,
     },
     /// Save Jira credentials interactively.
     ///

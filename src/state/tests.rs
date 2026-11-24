@@ -76,7 +76,7 @@ fn added_parent_is_emitted() {
 #[test]
 fn removed_parent_is_no_longer_watched() {
     let mut current = state("1", Some(("TEST-2", "1")));
-    current.maybe_update(state("2", None));
+    current.maybe_update(state("2", None), None);
     assert!(current.parent.is_none());
     assert_eq!(current.issue.fields["updated"], "2");
     assert!(changed_keys(&state("2", None), &current).is_empty());
@@ -191,11 +191,11 @@ async fn refetches_parent_and_follows_reparenting() {
     let mut current = fetch(&jira).await.unwrap();
     let next = fetch(&jira).await.unwrap();
     assert_eq!(changed_keys(&next, &current), ["TEST-2"]);
-    current.maybe_update(next);
+    current.maybe_update(next, None);
     assert_eq!(current.parent.as_ref().unwrap().fields["updated"], "2");
     let next = fetch(&jira).await.unwrap();
     assert_eq!(changed_keys(&next, &current), ["TEST-3"]);
-    current.maybe_update(next);
+    current.maybe_update(next, None);
     assert_eq!(current.parent.as_ref().unwrap().key, "TEST-3");
     server.await.unwrap();
 }

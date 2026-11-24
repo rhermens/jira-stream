@@ -1,5 +1,7 @@
 use gouqi::{Issue, r#async::Jira};
 
+use crate::socket::EventLog;
+
 #[cfg(test)]
 mod tests;
 
@@ -25,16 +27,16 @@ impl State {
         Ok(Self { issue, parent })
     }
 
-    pub fn maybe_update(&mut self, next: Self) {
+    pub fn maybe_update(&mut self, next: Self, events: Option<&EventLog>) {
         for issue in next.changed_issues(self) {
-            emit_issue(issue);
+            emit_issue(issue, events);
         }
         *self = next;
     }
 
-    pub fn emit(&self) {
+    pub fn emit(&self, events: Option<&EventLog>) {
         for issue in self.issues() {
-            emit_issue(issue);
+            emit_issue(issue, events);
         }
     }
 
@@ -52,9 +54,10 @@ impl State {
     }
 }
 
-fn emit_issue(issue: &Issue) {
-    println!(
-        "{}",
-        serde_json::to_string(issue).expect("Failed to serialize issue")
-    );
+fn emit_issue(issue: &Issue, events: Option<&EventLog>) {
+    let json = serde_json::to_string(issue).expect("Failed to serialize issue");
+    println!("{json}");
+    if let Some(events) = events {
+        events.push(format!("{json}\n"));
+    }
 }
