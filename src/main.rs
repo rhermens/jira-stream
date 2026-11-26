@@ -39,6 +39,15 @@ async fn main() {
             let credentials = Credentials::Basic(config.username, config.token);
             let jira = Jira::new(config.host, credentials).expect("No jira");
 
+            // Register before binding so every visible socket has shutdown handlers.
+            let mut interrupt =
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())
+                    .expect("Failed to listen for SIGINT");
+            let mut terminate =
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                    .expect("Failed to listen for SIGTERM");
+            let mut hangup = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())
+                .expect("Failed to listen for SIGHUP");
             let socket = socket
                 .as_deref()
                 .map(SocketServer::bind)
@@ -46,10 +55,12 @@ async fn main() {
                 .expect("Failed to bind socket");
             let events = socket.as_ref().map(SocketServer::events);
 
-            // Return on Ctrl-C so the socket server drops and removes its path.
+            // Return on shutdown so the socket server drops and removes its path.
             tokio::select! {
                 () = watch(&jira, &ticket, interval, events.as_ref()) => {}
-                result = tokio::signal::ctrl_c() => result.expect("Failed to listen for Ctrl-C"),
+                _ = interrupt.recv() => {}
+                _ = terminate.recv() => {}
+                _ = hangup.recv() => {}
             }
         }
         Command::Login => {

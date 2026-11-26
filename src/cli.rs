@@ -55,6 +55,8 @@ pub enum Command {
         /// Standard output remains enabled. Parent directories are created as needed.
         /// Each connection receives all events emitted since startup, then live events.
         /// History is retained in memory until exit.
+        /// The socket is removed on Ctrl-C, SIGTERM, SIGHUP, and normal exit.
+        /// After SIGKILL, remove the leftover socket before restarting.
         #[arg(long, value_name = "PATH")]
         socket: Option<PathBuf>,
     },
